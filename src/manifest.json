@@ -1,12 +1,14 @@
 {
-  "name": "NflxMultiSubs 2021 (Netflix Multi. Subtitles)",
+  "name": "NflxMultiSubs",
   "manifest_version": 2,
+  "version": "1.0.0",
   "author": "Dan Chen, Gert Mertes",
 
   "permissions": [
     "storage",
     "https://www.netflix.com/watch/*",
-    "https://assets.nflxext.com/*"
+    "https://assets.nflxext.com/*", 
+    "activeTab"
   ],
 
   "background": {
@@ -29,7 +31,7 @@
 
   "content_scripts": [
     {
-      "matches": ["https://www.netflix.com/*"],
+      "matches": ["https://www.netflix.com/*"], 
       "js": ["content.min.js"],
       "run_at": "document_start"
     }

@@ -148,6 +148,8 @@ class SubtitleBase {
 
   render(seconds, options, forced) {
     if (!this.active || this.state !== 'READY' || !this.lines) return [];
+
+    // find the correct line to render 
     const lines = this.lines.filter(
       line => line.begin <= seconds && seconds <= line.end
     );
@@ -158,7 +160,7 @@ class SubtitleBase {
 
     if (this.lastRenderedIds === ids && !forced) return null;
     this.lastRenderedIds = ids;
-    return this._render(lines, options);
+    return this._renderText(lines, options);
   }
 
   getExtent() {
@@ -185,6 +187,10 @@ class SubtitleBase {
   }
 
   _render(lines, options) {
+    // implemented in derived class
+  }
+
+  _renderText(lines, options) {
     // implemented in derived class
   }
 
@@ -303,7 +309,67 @@ class TextSubtitle extends SubtitleBase {
 
     return [text];
   }
+
+
+  _renderText(lines, options) {
+    const container = document.createElement('div');
+    container.style.textAlign = 'center'; // Set text alignment to center
+    container.style.position = 'absolute';
+    container.style.left = '50%';
+    container.style.transform = 'translateX(-50%)'; // Center horizontally
+
+    const fontSize = Math.ceil(this.extentHeight / 30);
+
+    // Join lines into a single string with newline characters
+    const textContent = lines.map(line => line.text).join('\n');
+
+    // Create a single <div> element for text
+    const textElement = document.createElement('div');
+    textElement.style.fontSize = `22px`;
+    textElement.style.fontFamily = 'Arial, Helvetica';
+    textElement.style.color = options.secondaryTextColor;
+    textElement.style.stroke = 'black'; // If needed, adjust stroke styling here
+    textElement.style.opacity = options.secondaryTextOpacity;
+    textElement.textContent = textContent;
+    textElement.style.whiteSpace = 'pre-wrap'; // Preserve line breaks
+
+
+    const spanContainer = document.createElement('div');
+
+    const words = textContent.split(' ');
+
+    // Wrap each word in a span element and assign a unique class
+    words.forEach((word, index) => {
+        const span = document.createElement('span');
+        span.textContent = word + ' '; // Add space after each word
+        span.classList.add('word-' + index); // Assign a unique class
+
+        // Apply styling to match the text element
+        span.style.fontSize = textElement.style.fontSize;
+        span.style.fontFamily = textElement.style.fontFamily;
+        span.style.color = textElement.style.color;
+        span.style.stroke = textElement.style.stroke;
+        span.style.opacity = textElement.style.opacity;
+
+        span.addEventListener('click', function() {
+            // Extract the word associated with the clicked span
+            const clickedWord = this.textContent.trim();
+            console.log('Clicked word:', clickedWord);
+        });
+
+        // span.click();
+
+        // Append each span to the span container
+        spanContainer.appendChild(span);
+    });
+
+    container.appendChild(spanContainer);
+
+    return [container];
+  }
+
 }
+
 
 class ImageSubtitle extends SubtitleBase {
   constructor(...args) {
@@ -691,6 +757,35 @@ const buildSecondarySubtitleElement = options => {
   return wrapper;
 };
 
+const buildSecondarySubtitleTextElement = options => {
+
+  const paragraph = document.createElement('p');
+  paragraph.classList.add('secondary-subtitle-text'); // TODO: actually set this
+  paragraph.style =
+    'position:absolute; width:100%; top:0; bottom:0; left:0; right:0;';
+  paragraph.setAttribute('width', '100%'); // Use setAttribute for width and height
+  paragraph.setAttribute('height', '100%');
+
+  const padding = document.createElement('div');
+  padding.classList.add('secondary-subtitle-padding'); // Updated class name
+  padding.style = `display:block; content:' '; width:100%; padding-top:${gVideoRatio *
+    100}%;`;
+
+  const container = document.createElement('div');
+  container.classList.add('secondary-subtitle-container'); // Updated class name
+  container.style = 'position:relative; width:100%; max-height:100%;';
+  container.appendChild(paragraph); // Append the paragraph instead of SVG
+  container.appendChild(padding);
+
+  const wrapper = document.createElement('div');
+  wrapper.classList.add('secondary-subtitle-wrapper'); // Updated class name
+  wrapper.style =
+    'position:absolute; top:0; left:0; width:100%; height:100%; z-index:2; display:flex; align-items:center;';
+  wrapper.appendChild(container);
+  
+  return wrapper;
+};
+
 // -----------------------------------------------------------------------------
 
 class PrimaryImageTransformer {
@@ -877,6 +972,7 @@ class RendererLoop {
     this.videoElem = video;
     this.subtitleWrapperElem = undefined; // secondary subtitles wrapper (outer)
     this.subSvg = undefined; // secondary subtitles container
+    this.subText = undefined; // secondary subtitles text container
     this.primaryImageTransformer = new PrimaryImageTransformer();
     this.primaryTextTransformer = new PrimaryTextTransformer();
   }
@@ -965,14 +1061,14 @@ class RendererLoop {
     }
 
     this._adjustPrimarySubtitles(controlsActive, !!this.isRenderDirty);
-    this._renderSecondarySubtitles();
+    this._renderSecondarySubtitlesText();
 
     // render secondary subtitles
     // ---------------------------------------------------------------------
     // FIXME: dirty transform & magic offets
     // this leads to a big gap between primary & secondary subtitles
     // when the progress bar is shown
-    this.subtitleWrapperElem.style.top = controlsActive ? '-100px' : '0';
+    // this.subtitleWrapperElem.style.top = controlsActive ? '-100px' : '0';
 
     // everything rendered, clear the dirty bit with ease
     this.isRenderDirty = false;
@@ -1058,7 +1154,8 @@ class RendererLoop {
     if (!this.subtitleWrapperElem || !this.subtitleWrapperElem.parentNode) {
       const playerContainerElem = document.querySelector('div[data-uia="video-canvas"]');
       if (!playerContainerElem) return false;
-      this.subtitleWrapperElem = buildSecondarySubtitleElement(gRenderOptions);
+      // this.subtitleWrapperElem = buildSecondarySubtitleElement(gRenderOptions);
+      this.subtitleWrapperElem = buildSecondarySubtitleTextElement(gRenderOptions);
       playerContainerElem.appendChild(this.subtitleWrapperElem);
     }
     return true;
@@ -1091,6 +1188,13 @@ class RendererLoop {
       elem.parentNode.removeChild(elem));
   }
 
+  _clearSecondarySubtitlesText() {
+    if (!this.subText || !this.subText.parentNode) return;
+    while (this.subText.firstChild) {
+      this.subText.removeChild(this.subText.firstChild); // remove the children to clear subtitle text 
+    }
+  }
+
   _renderSecondarySubtitles() {
     if (!this.subSvg || !this.subSvg.parentNode) {
       this.subSvg = this.subtitleWrapperElem.querySelector('svg');
@@ -1111,6 +1215,7 @@ class RendererLoop {
       gRenderOptions,
       !!this.isRenderDirty
     );
+
     if (renderedElems) {
       const [extentWidth, extentHeight] = sub.getExtent();
       if (extentWidth && extentHeight) {
@@ -1121,6 +1226,37 @@ class RendererLoop {
       }
       this._clearSecondarySubtitles();
       renderedElems.forEach(elem => this.subSvg.appendChild(elem));
+    }
+  }
+
+
+
+  _renderSecondarySubtitlesText() {
+    if (!this.subText || !this.subText.parentNode) {
+      this.subText = this.subtitleWrapperElem.querySelector('p');
+      // find paragraph
+    }
+    const seconds = this.videoElem.currentTime;
+    const sub = gSubtitles.find(sub => sub.active);
+    if (!sub) {
+      return;
+    }
+
+    if (sub instanceof TextSubtitle) {
+      const rect = this.videoElem.getBoundingClientRect();
+      sub.setExtent(rect.width, rect.height);
+    }
+
+    const renderedElems = sub.render(
+      seconds,
+      gRenderOptions,
+      !!this.isRenderDirty
+    );
+
+    if (renderedElems) {
+      // const [extentWidth, extentHeight] = sub.getExtent();
+      this._clearSecondarySubtitlesText();
+      renderedElems.forEach(elem => this.subText.appendChild(elem));
     }
   }
 }

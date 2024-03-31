@@ -1,4 +1,4 @@
-// wraper console.xxx() to add prefix
+// wrapper console.xxx() to add prefix
 const prefix = 'NflxMultiSubs>';
 const console = {
   log: (...args) => window.console.log(prefix, ...args),

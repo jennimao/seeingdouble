@@ -12,13 +12,8 @@ const kDefaultSettings = {
   secondaryTextStroke: 2.0,
   secondaryTextOpacity: 1,
   secondaryTextColor: "#ffffff",
-  // secondaryLanguageMode valid values are:
-  //    'disabled',
-  //    'audio' (use audio language),
-  //    'last' (use last used language)
-  secondaryLanguageMode: 'audio',
-  // bcp47 code of the last used language
-  secondaryLanguageLastUsed: undefined,
+  secondaryLanguageMode: 'audio', // disabled, audio, last (last used language)
+  secondaryLanguageLastUsed: undefined, // bcp47 code of the last used language 
   secondaryLanguageLastUsedIsCaption: undefined,
 };
 
