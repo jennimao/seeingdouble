@@ -2,6 +2,9 @@ const console = require('./console');
 const JSZip = require('jszip');
 const kDefaultSettings = require('./default-settings');
 const PlaybackRateController = require('./playback-rate-controller');
+const { OpenAI } = require('openai');
+
+
 
 let firstWord = "";
 let secondWord = "";
@@ -157,7 +160,7 @@ class SubtitleBase {
     this.active = false;
   }
 
-  render(seconds, options, forced) {
+  async render(seconds, options, forced) {
     if (!this.active || this.state !== 'READY' || !this.lines) return [];
 
     // find the correct line to render 
@@ -171,7 +174,10 @@ class SubtitleBase {
 
     if (this.lastRenderedIds === ids && !forced) return null;
     this.lastRenderedIds = ids;
-    return this._renderText(lines, options);
+    // Wait for _renderText to complete before proceeding
+    const renderedElements = await this._renderText(lines, options);
+    return renderedElements;
+
   }
 
   getExtent() {
@@ -271,6 +277,146 @@ fetchWordDefinition = word => {
 };
 
 
+
+
+// Function to translate text based on selected vocabulary size
+async function translateText(selectedVocabularySize, textContent) {
+  if (!textContent) {
+    console.log('Text content is empty. Skipping translation.');
+    return ''; // Return an empty string if textContent is empty
+  }
+  
+  try {
+      console.log("translating text: ", textContent);
+      const prompt = constructPrompt(selectedVocabularySize, textContent);
+      const translatedText = await callOpenAIForTranslation(prompt);
+      console.log('Translated Text:', translatedText);
+      return translatedText;
+  } catch (error) {
+      console.error('Error:', error);
+      throw error; // Rethrow the error for handling in the caller function
+  }
+}
+
+// Function to construct prompt based on selected vocabulary size
+function constructPrompt(selectedVocabularySize, textContent) {
+  // Eventually allow different languages
+  let prompt = `Simplify the following text in English assuming user has only a basic vocabulary of `;
+  
+  if (selectedVocabularySize === '100') {
+      prompt += `100 words or less. Please it make it very accessible. \n\n${textContent}`;
+  } else if (selectedVocabularySize === '300') {
+      prompt += `300 words or less. Please it make it very accessible.\n\n${textContent}`;
+  } else if (selectedVocabularySize === '1k') {
+      prompt += `1000 words or less.\n\n${textContent}`;
+  } else if (selectedVocabularySize === 'fluency') {
+      prompt += `a full vocabulary for fluency.\n\n${textContent}`;
+  }
+  
+  console.log('Prompt: ', prompt)
+  return prompt;
+}
+
+async function callOpenAIForTranslation(prompt) {
+  const APIkey = "";
+  const openai = new OpenAI({ apiKey: APIkey, dangerouslyAllowBrowser: true });
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "user",
+          content: prompt
+        }
+      ]
+    });
+    console.log(response.choices[0].message.content);
+    return response.choices[0].message.content;
+  } catch (error) {
+    console.error("Error generating chat completion:", error);
+  }
+}
+
+function createSpanElements(words, options) {
+  const container = document.createElement('div');
+  container.style.textAlign = 'center'; // Set text alignment to center
+  container.style.position = 'absolute';
+  container.style.left = '50%';
+  container.style.transform = 'translateX(-50%)'; // Center horizontally
+
+  const spanContainer = document.createElement('div');
+
+
+  // Wrap each word in a span element and assign a unique class
+  let num = 1;
+  for (const word of words) {
+      console.log("Word: ", word);
+      const span = document.createElement('span');
+      span.textContent = word + ' '; // Add space after each word
+      span.classList.add('word-' + num); // Assign a unique class
+
+      // Apply styling to match the text element
+      span.style.fontSize = '22px';
+      span.style.fontFamily = 'Arial, Helvetica';
+      span.style.color = options.secondaryTextColor;
+      span.style.stroke = 'black';
+      span.style.opacity = options.secondary;
+      span.style.whiteSpace = 'pre-wrap'; // Preserve line breaks
+
+      const clickedWord = span.textContent.trim();
+      switch(num)
+      {   
+        case 1:
+          firstWord = clickedWord;
+          break;
+        case 2:
+          secondWord = clickedWord
+        break;
+        case 3:
+          thirdWord = clickedWord;
+        break;
+        case 4:
+          fourthWord = clickedWord;
+          break;
+        case 5:
+          fifthWord = clickedWord;
+          break;
+        case 6:
+          sixthWord = clickedWord;
+          break;
+        case 7:
+          seventhWord = clickedWord;
+          break;
+        case 8:
+          eighthWord = clickedWord;
+          break;
+        case 9:
+          ninethWord = clickedWord;
+          break;
+      }
+       
+        num = num + 1;
+
+      span.addEventListener('click', function() {
+          // Extract the word associated with the clicked span
+          const trimmedWord = this.textContent.trim().replace(/[^\w\s]/g, '');
+          const clickedWord = trimmedWord.charAt(0).toUpperCase() + trimmedWord.slice(1);
+          console.log('Clicked word:', clickedWord);
+          // make a request to the API to get the definition
+          fetchWordDefinition(clickedWord);
+      });
+
+      // Append each span to the span container
+      spanContainer.appendChild(span);
+  }
+
+  container.appendChild(spanContainer);
+
+  return [container]
+}
+
+
 class TextSubtitle extends SubtitleBase {
   constructor(...args) {
     super(...args);
@@ -359,8 +505,7 @@ class TextSubtitle extends SubtitleBase {
   }
 
 
-
-  _renderText(lines, options) {
+ async _renderText(lines, options) {
     const container = document.createElement('div');
     container.style.textAlign = 'center'; // Set text alignment to center
     container.style.position = 'absolute';
@@ -382,14 +527,192 @@ class TextSubtitle extends SubtitleBase {
     textElement.textContent = textContent;
     textElement.style.whiteSpace = 'pre-wrap'; // Preserve line breaks
 
+ 
+    // Feed into OpenAI to translate text to the user-specifed vocabulary level 
+
+    const selectedVocabularySize = '100'; // Example: select vocabulary size '300'
+    let words = textContent.split(' '); 
+
+    if (!textContent) { 
+      return [container]; // Return an empty container if textContent is empty
+    }
+
+      // Translate the text asynchronously
+    try {
+      const simplifiedText = await translateText(selectedVocabularySize, textContent);
+
+      // Handle the translated text here
+      console.log("Original: ", textContent);
+      console.log("Simplified: ", simplifiedText);
+      textElement.textContent =  simplifiedText;
+      words = simplifiedText.split(' ');
+      console.log("Words: ", words);
+
+      // Call the function to create span elements and assign click event listeners
+      const spanContainer = document.createElement('div');
+
+      // Wrap each word in a span element and assign a unique class
+      let num = 1;
+      for (const word of words) {
+          console.log("Word: ", word);
+          const span = document.createElement('span');
+          span.textContent = word + ' '; // Add space after each word
+          span.classList.add('word-' + num); // Assign a unique class
+
+          // Apply styling to match the text element
+          span.style.fontSize = '22px';
+          span.style.fontFamily = 'Arial, Helvetica';
+          span.style.color = options.secondaryTextColor;
+          span.style.stroke = 'black';
+          span.style.opacity = options.secondary;
+          span.style.whiteSpace = 'pre-wrap'; // Preserve line breaks
+
+          const clickedWord = span.textContent.trim();
+          switch(num)
+          {   
+            case 1:
+              firstWord = clickedWord;
+              break;
+            case 2:
+              secondWord = clickedWord
+            break;
+            case 3:
+              thirdWord = clickedWord;
+            break;
+            case 4:
+              fourthWord = clickedWord;
+              break;
+            case 5:
+              fifthWord = clickedWord;
+              break;
+            case 6:
+              sixthWord = clickedWord;
+              break;
+            case 7:
+              seventhWord = clickedWord;
+              break;
+            case 8:
+              eighthWord = clickedWord;
+              break;
+            case 9:
+              ninethWord = clickedWord;
+              break;
+          }
+            
+            num = num + 1;
+
+          span.addEventListener('click', function() {
+              // Extract the word associated with the clicked span
+              const trimmedWord = this.textContent.trim().replace(/[^\w\s]/g, '');
+              const clickedWord = trimmedWord.charAt(0).toUpperCase() + trimmedWord.slice(1);
+              console.log('Clicked word:', clickedWord);
+              // make a request to the API to get the definition
+              fetchWordDefinition(clickedWord);
+          });
+
+          // Append each span to the span container
+          spanContainer.appendChild(span);
+      }
+
+        container.appendChild(spanContainer);
+        return [container];
+    } catch (error) {
+        // Handle errors here
+        console.error('Error:', error);
+    }
+    /*
+    translateText(selectedVocabularySize, textContent)
+    .then(simplifiedText => {
+        // Handle the translated text here
+        console.log("Original: ", textContent);
+        console.log("Simplified: ", simplifiedText);
+        textElement.textContent =  simplifiedText;
+        words = simplifiedText.split(' ');
+        console.log("Words: ", words);
+
+        // Call the function to create span elements and assign click event listeners
+        const spanContainer = document.createElement('div');
+      
+      
+        // Wrap each word in a span element and assign a unique class
+        let num = 1;
+        for (const word of words) {
+            console.log("Word: ", word);
+            const span = document.createElement('span');
+            span.textContent = word + ' '; // Add space after each word
+            span.classList.add('word-' + num); // Assign a unique class
+      
+            // Apply styling to match the text element
+            span.style.fontSize = '22px';
+            span.style.fontFamily = 'Arial, Helvetica';
+            span.style.color = options.secondaryTextColor;
+            span.style.stroke = 'black';
+            span.style.opacity = options.secondary;
+            span.style.whiteSpace = 'pre-wrap'; // Preserve line breaks
+      
+            const clickedWord = span.textContent.trim();
+            switch(num)
+            {   
+              case 1:
+                firstWord = clickedWord;
+                break;
+              case 2:
+                secondWord = clickedWord
+              break;
+              case 3:
+                thirdWord = clickedWord;
+              break;
+              case 4:
+                fourthWord = clickedWord;
+                break;
+              case 5:
+                fifthWord = clickedWord;
+                break;
+              case 6:
+                sixthWord = clickedWord;
+                break;
+              case 7:
+                seventhWord = clickedWord;
+                break;
+              case 8:
+                eighthWord = clickedWord;
+                break;
+              case 9:
+                ninethWord = clickedWord;
+                break;
+            }
+             
+              num = num + 1;
+      
+            span.addEventListener('click', function() {
+                // Extract the word associated with the clicked span
+                const trimmedWord = this.textContent.trim().replace(/[^\w\s]/g, '');
+                const clickedWord = trimmedWord.charAt(0).toUpperCase() + trimmedWord.slice(1);
+                console.log('Clicked word:', clickedWord);
+                // make a request to the API to get the definition
+                fetchWordDefinition(clickedWord);
+            });
+      
+            // Append each span to the span container
+            spanContainer.appendChild(span);
+        }
+      
+        //container.appendChild(spanContainer);
+      
+        return [spanContainer]
+    })
+    .catch(error => {
+        // Handle errors here
+        console.error('Error:', error);
+    });
+
 
     const spanContainer = document.createElement('div');
-
-    const words = textContent.split(' ');
 
     // Wrap each word in a span element and assign a unique class
     let num = 1; 
     words.forEach((word, index) => {
+        console.log("Word: ", word);
         const span = document.createElement('span');
         span.textContent = word + ' '; // Add space after each word
         span.classList.add('word-' + index); // Assign a unique class
@@ -442,7 +765,6 @@ class TextSubtitle extends SubtitleBase {
             const trimmedWord = this.textContent.trim().replace(/[^\w\s]/g, '');
             const clickedWord = trimmedWord.charAt(0).toUpperCase() + trimmedWord.slice(1);
             console.log('Clicked word:', clickedWord);
-
             // make a request to the API to get the definition
             fetchWordDefinition(clickedWord);
         });
@@ -456,7 +778,8 @@ class TextSubtitle extends SubtitleBase {
     container.appendChild(spanContainer);
 
     return [container];
-  }
+  }*/
+}
 
 }
 
@@ -1111,9 +1434,9 @@ class RendererLoop {
     //this._disconnect();
   }
 
-  loop() {
+  async loop() {
     try {
-      this._loop();
+      await this._loop();
       this.isRunning && window.requestAnimationFrame(this.loop.bind(this));
     }
     catch (err) {
@@ -1121,7 +1444,7 @@ class RendererLoop {
     }
   }
 
-  _loop() {
+  async _loop() {
     const currentVideoElem = document.querySelector('#appMountPoint video');
 
     // stop the render loop if there is no videoplayer (e.g.: user is on the homepage)
@@ -1151,7 +1474,7 @@ class RendererLoop {
     }
 
     this._adjustPrimarySubtitles(controlsActive, !!this.isRenderDirty);
-    this._renderSecondarySubtitlesText();
+    await this._renderSecondarySubtitlesText();
 
     // render secondary subtitles
     // ---------------------------------------------------------------------
@@ -1325,7 +1648,7 @@ class RendererLoop {
 
 
 
-  _renderSecondarySubtitlesText() {
+  async _renderSecondarySubtitlesText() {
     if (!this.subText || !this.subText.parentNode) {
       this.subText = this.subtitleWrapperElem.querySelector('p');
       // find paragraph
@@ -1341,7 +1664,7 @@ class RendererLoop {
       sub.setExtent(rect.width, rect.height);
     }
 
-    const renderedElems = sub.render(
+    const renderedElems = await sub.render(
       seconds,
       gRenderOptions,
       !!this.isRenderDirty
@@ -1351,6 +1674,7 @@ class RendererLoop {
       // const [extentWidth, extentHeight] = sub.getExtent();
       this._clearSecondarySubtitlesText();
       renderedElems.forEach(elem => this.subText.appendChild(elem));
+      console.log('rendered: ', renderedElems);
     }
   }
 }
