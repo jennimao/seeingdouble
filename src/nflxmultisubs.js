@@ -3,6 +3,16 @@ const JSZip = require('jszip');
 const kDefaultSettings = require('./default-settings');
 const PlaybackRateController = require('./playback-rate-controller');
 
+let firstWord = "";
+let secondWord = "";
+let thirdWord = "";
+let fourthWord = "";
+let fifthWord = "";
+let sixthWord = "";
+let seventhWord = "";
+let eighthWord = "";
+let ninethWord = "";
+
 ////////////////////////////////////////////////////////////////////////////////
 
 // Hook JSON.parse() and attempt to intercept the manifest
@@ -378,6 +388,7 @@ class TextSubtitle extends SubtitleBase {
     const words = textContent.split(' ');
 
     // Wrap each word in a span element and assign a unique class
+    let num = 1; 
     words.forEach((word, index) => {
         const span = document.createElement('span');
         span.textContent = word + ' '; // Add space after each word
@@ -389,6 +400,42 @@ class TextSubtitle extends SubtitleBase {
         span.style.color = textElement.style.color;
         span.style.stroke = textElement.style.stroke;
         span.style.opacity = textElement.style.opacity;
+
+        const clickedWord = span.textContent.trim();
+        switch(num)
+        {   
+          case 1:
+            firstWord = clickedWord;
+            break;
+          case 2:
+            secondWord = clickedWord
+          break;
+          case 3:
+            thirdWord = clickedWord;
+          break;
+          case 4:
+            fourthWord = clickedWord;
+            break;
+          case 5:
+            fifthWord = clickedWord;
+            break;
+          case 6:
+            sixthWord = clickedWord;
+            break;
+          case 7:
+            seventhWord = clickedWord;
+            break;
+          case 8:
+            eighthWord = clickedWord;
+            break;
+          case 9:
+            ninethWord = clickedWord;
+            break;
+        }
+         
+          num = num + 1;
+
+
 
         span.addEventListener('click', function() {
             // Extract the word associated with the clicked span
@@ -1611,3 +1658,105 @@ window.addEventListener('keydown', (event) => {
     primary.style.visibility = secondary.style.visibility = (visible) ? 'hidden' : 'visible';
   }
 }, true);
+
+
+
+function OneEvent(event) {
+  if (event.key === '1') {
+    if (event.type === 'keydown' && event.repeat === false) {
+
+      // Extract the word associated with the clicked span
+      const trimmedWord = firstWord.trim().replace(/[^\w\s]/g, '');
+      const clickedWord = trimmedWord.charAt(0).toUpperCase() + trimmedWord.slice(1);
+      console.log('Clicked word:', clickedWord);
+
+      // make a request to the API to get the definition
+      fetchWordDefinition(clickedWord);
+
+    }
+  }  
+  if (event.key === '2') {
+    if (event.type === 'keydown' && event.repeat === false) {
+      // Extract the word associated with the clicked span
+      const trimmedWord = secondWord.trim().replace(/[^\w\s]/g, '');
+      const clickedWord = trimmedWord.charAt(0).toUpperCase() + trimmedWord.slice(1);
+      console.log('Clicked word:', clickedWord);
+
+      // make a request to the API to get the definition
+      fetchWordDefinition(clickedWord);
+    }
+  }    
+  if (event.key === '3') {
+    if (event.type === 'keydown' && event.repeat === false) {
+      // Extract the word associated with the clicked span
+      const trimmedWord = thirdWord.trim().replace(/[^\w\s]/g, '');
+      const clickedWord = trimmedWord.charAt(0).toUpperCase() + trimmedWord.slice(1);
+      console.log('Clicked word:', clickedWord);
+
+      // make a request to the API to get the definition
+      fetchWordDefinition(clickedWord);
+    }
+  }    
+  if (event.key === '4') {
+    if (event.type === 'keydown' && event.repeat === false) {
+      // Extract the word associated with the clicked span
+      const trimmedWord = fourthWord.trim().replace(/[^\w\s]/g, '');
+      const clickedWord = trimmedWord.charAt(0).toUpperCase() + trimmedWord.slice(1);
+      console.log('Clicked word:', clickedWord);
+
+      // make a request to the API to get the definition
+      fetchWordDefinition(clickedWord);
+    }
+  }    
+  if (event.key === '5') {
+    if (event.type === 'keydown' && event.repeat === false) {
+      const trimmedWord = fifthWord.trim().replace(/[^\w\s]/g, '');
+      const clickedWord = trimmedWord.charAt(0).toUpperCase() + trimmedWord.slice(1);
+      console.log('Clicked word:', clickedWord);
+
+      // make a request to the API to get the definition
+      fetchWordDefinition(clickedWord);
+    }
+  }    
+  if (event.key === '6') {
+    if (event.type === 'keydown' && event.repeat === false) {
+      const trimmedWord = sixthWord.trim().replace(/[^\w\s]/g, '');
+      const clickedWord = trimmedWord.charAt(0).toUpperCase() + trimmedWord.slice(1);
+      console.log('Clicked word:', clickedWord);
+
+      // make a request to the API to get the definition
+      fetchWordDefinition(clickedWord);
+    }
+  }    
+  if (event.key === '7') {
+    if (event.type === 'keydown' && event.repeat === false) {
+      const trimmedWord = seventhWord.trim().replace(/[^\w\s]/g, '');
+      const clickedWord = trimmedWord.charAt(0).toUpperCase() + trimmedWord.slice(1);
+      console.log('Clicked word:', clickedWord);
+
+      // make a request to the API to get the definition
+      fetchWordDefinition(clickedWord);
+    }
+  }    
+  if (event.key === '8') {
+    if (event.type === 'keydown' && event.repeat === false) {
+      const trimmedWord = eighthWord.trim().replace(/[^\w\s]/g, '');
+      const clickedWord = trimmedWord.charAt(0).toUpperCase() + trimmedWord.slice(1);
+      console.log('Clicked word:', clickedWord);
+
+      // make a request to the API to get the definition
+      fetchWordDefinition(clickedWord);
+    }
+  }    
+  if (event.key === '9') {
+    if (event.type === 'keydown' && event.repeat === false) {
+      const trimmedWord = ninthWord.trim().replace(/[^\w\s]/g, '');
+      const clickedWord = trimmedWord.charAt(0).toUpperCase() + trimmedWord.slice(1);
+      console.log('Clicked word:', clickedWord);
+
+      // make a request to the API to get the definition
+      fetchWordDefinition(clickedWord);
+    }
+  }      
+}  
+document.addEventListener('keydown', OneEvent);
