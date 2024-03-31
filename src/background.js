@@ -5,6 +5,7 @@ const kDefaultSettings = require('./default-settings');
 
 
 let gSettings = Object.assign({}, kDefaultSettings);
+let gWordBank = []
 
 // return true if valid; otherwise return false
 function validateSettings(settings) {
@@ -29,6 +30,22 @@ function saveSettings() {
   gSettings.secondaryTextOpacity = 1
   chrome.storage.local.set({ settings: gSettings }, () => {
     console.log('Settings: saved into local storage');
+  });
+}
+
+// Initialize the word bank in Chrome storage if it doesn't exist
+chrome.storage.local.get(['wordBank'], (result) => {
+  console.log('Loaded: wordBank =', result.wordBank);
+  if (!result.wordBank) {
+      chrome.storage.local.set({ 'wordBank': [] });
+  }
+  else 
+    saveWordBank();
+});
+
+function saveWordBank() {
+  chrome.storage.local.set({ wordBank: gWordBank }, () => {
+    console.log('Word Bank: saved into local storage');
   });
 }
 
@@ -105,6 +122,12 @@ function handleExternalConnection(port) {
       console.log('Desaturate icon')
       desaturateActionIconForTab(tabId);
     }
+    else if (msg.wordBank) {
+      console.log('Received from injected agent: wordBank=', msg.wordBank);
+      gWordBank = msg.wordBank;
+      saveWordBank();
+      dispatchWordBank();
+    }
     else {
 
     }
@@ -116,14 +139,29 @@ function handleExternalConnection(port) {
   });
 }
 
+// dispatch word bank to the internal port! 
+function dispatchWordBank() {
+  try {
+    gIntPort.postMessage({ wordBank: gWordBank });
+  }
+  catch (err) {
+    console.error('Error: cannot dispatch word bank,', err);
+  }
+}
+
+
+let gIntPort; 
 
 // connected from our pop-up page
 function handleInternalConnection(port) {
  const portName = port.name;
  console.log(`Connected: ${portName} (internal)`);
 
+ gIntPort = port;
+
  if (portName === 'settings') {
    port.postMessage({ settings: gSettings });
+   port.postMessage({ wordBank: gWordBank });
 
    port.onMessage.addListener(msg => {
      if (!msg.settings) {

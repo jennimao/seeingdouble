@@ -5,7 +5,7 @@ html, body {
   font-size: 12px;
   font-family: "Helvetica Neue", Arial, "Microsoft Jhenghei", sans-serif;
   margin: 0;
-  min-width: 300px;
+  min-width: 350px;
   min-height: 460px;
   padding: 0;
   outline: 0;
@@ -275,4 +275,16 @@ footer {
 #primary-color-ff .picker_wrapper.popup,
 #secondary-color-ff .picker_wrapper.popup {
   box-shadow: 0 0 10px 1px rgb(0 0 0 / 80%);
+}
+
+.word-bank-container {
+  border: 2px solid hsl(10, 80%, 50%);
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+word-bank-container p:hover {
+  cursor: pointer;
+  text-decoration: underline;
+  text-align: left;
 }

@@ -1,4 +1,5 @@
 let settings = {};
+let wordBank = [];
 let primaryPicker, secondaryPicker;
 
 if (BROWSER === 'firefox') {
@@ -23,6 +24,9 @@ const port = chrome.runtime.connect({ name: 'settings' });
 port.onMessage.addListener((msg) => {
   settings = msg.settings || settings;
   renderActiveSettings();
+
+  wordBank = msg.wordBank || wordBank;
+  renderWordBank();
 
   primaryPicker?.setColor(settings.primaryTextColor || "#ffffff", true);
   secondaryPicker?.setColor(settings.secondaryTextColor || "#ffffff", true);
@@ -69,7 +73,42 @@ function resetSettings() {
   port.postMessage({ settings: null });
 }
 
+
+
+function renderWordBank() {
+  console.log('renderingWordBank');
+  if (document.readyState !== 'complete') return;
+
+  // Assuming WordBank is an array containing the word bank data
+  const wordBankContainer = document.getElementById('wordBankContainer');
+  wordBankContainer.innerHTML = ''; // Clear previous content
+
+  // Iterate through the word bank data and create UI elements for each word and definition
+  wordBank.forEach((wordDefinition, index) => { // <-- Using forEach with index
+    const wordElement = document.createElement('div');
+
+    // Number each word
+    const wordNumber = document.createElement('span');
+    wordNumber.textContent = `${index + 1}`;
+    wordNumber.style.fontWeight = 'bold'; 
+
+    // Add the word and definition
+    const wordDefinitionText = `${wordNumber.textContent}. ${wordDefinition.word}: ${wordDefinition.definition}`;
+    wordElement.textContent = wordDefinitionText;
+
+    // Add additional styling or event listeners if needed
+    wordBankContainer.appendChild(wordElement);
+
+    // Add a line break after each definition
+    wordBankContainer.appendChild(document.createElement('br'));
+  });
+}
+
+
+
 function renderActiveSettings() {
+  console.log('renderingActiveSettings');
+
   if (document.readyState !== 'complete') return;
 
   // clear all
@@ -106,6 +145,8 @@ function renderActiveSettings() {
     if(settings.secondaryLanguageLastUsed)
       document.getElementById('langcode').innerHTML = settings.secondaryLanguageLastUsed.split('-')[0] // only display language code, not script tag (eg: zh not zh-Hans)
   }
+
+  renderWordBank();
 }
 
 function updateLayout(layoutId) {
@@ -173,6 +214,7 @@ function renderVersion() {
 window.addEventListener('load', evt => {
   renderVersion();
   renderActiveSettings();
+  renderWordBank();
 
   // handle click events
   // ---------------------------------------------------------------------------
@@ -223,3 +265,4 @@ window.addEventListener('load', evt => {
     resetSettings();
   }, false);
 });
+

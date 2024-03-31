@@ -60,6 +60,7 @@ let gSubtitles = [],
 let gMsgPort, gRendererLoop;
 let gVideoRatio = 1080 / 1920;
 let gRenderOptions = Object.assign({}, kDefaultSettings);
+let gWordBank = [];
 let gSecondaryOffset = 0; // used to move secondary subs if primary subs overflow the screen edge
 
 (() => {
@@ -223,6 +224,43 @@ class DehydratedSubtitle extends SubtitleBase {
   }
 }
 
+
+const DICTIONARY_API_BASE_URL = 'https://api.dictionaryapi.dev/api/v2/entries/en/';
+
+fetchWordDefinition = word => {
+  // Make a request to the API
+  fetch(DICTIONARY_API_BASE_URL + word)
+      .then(response => {
+          // Check if the request was successful
+          if (!response.ok) {
+              throw new Error('Network response was not ok');
+          }
+          // Parse the JSON response
+          return response.json();
+      })
+      .then(data => {
+          // Extract the definition from the response
+          const definition = data[0]?.meanings.flatMap(m => m.definitions).flatMap(d => d.definition)[0];
+          if (definition) {
+              console.log('Definition:', definition);
+              // Create an object with the word and its definition
+              const wordDefinition = { word: word, definition: definition };
+              // Append the word-definition object to the wordBank
+              gWordBank.push(wordDefinition);
+          } else {
+              console.log('No definition found');
+          }
+          // Send the updated wordBank to background.js
+          if (gMsgPort) {
+              gMsgPort.postMessage({ wordBank: gWordBank });
+          }
+      })
+      .catch(error => {
+          console.error('Error fetching definition:', error);
+      });
+};
+
+
 class TextSubtitle extends SubtitleBase {
   constructor(...args) {
     super(...args);
@@ -311,6 +349,7 @@ class TextSubtitle extends SubtitleBase {
   }
 
 
+
   _renderText(lines, options) {
     const container = document.createElement('div');
     container.style.textAlign = 'center'; // Set text alignment to center
@@ -353,8 +392,12 @@ class TextSubtitle extends SubtitleBase {
 
         span.addEventListener('click', function() {
             // Extract the word associated with the clicked span
-            const clickedWord = this.textContent.trim();
+            const trimmedWord = this.textContent.trim().replace(/[^\w\s]/g, '');
+            const clickedWord = trimmedWord.charAt(0).toUpperCase() + trimmedWord.slice(1);
             console.log('Clicked word:', clickedWord);
+
+            // make a request to the API to get the definition
+            fetchWordDefinition(clickedWord);
         });
 
         // span.click();
@@ -1087,9 +1130,13 @@ class RendererLoop {
         console.log(`Linked: ${extensionId}`);
 
         gMsgPort.onMessage.addListener(msg => {
-          if (!msg.settings) return;
-          gRenderOptions = Object.assign({}, msg.settings);
-          gRendererLoop && gRendererLoop.setRenderDirty();
+          if (msg.settings) {
+            gRenderOptions = Object.assign({}, msg.settings);
+            gRendererLoop && gRendererLoop.setRenderDirty();
+          }
+          else if (msg.wordBank) {
+            gWordBank = Object.assign([], msg.wordBank);
+          }
         });
       } catch (err) {
         console.warn('Error: cannot talk to background,', err);
